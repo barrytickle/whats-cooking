@@ -4,12 +4,13 @@ Where we're up to, so the next session can pick straight up. (Concepts and expla
 
 ## ▶️ Next up
 
-**Loading and error states for the categories**
+**"Something to try": random meals on the homepage**
 
-- While fetching: show placeholder cards (the grey boxes in `design/original.png`). `Array.from({ length: n })` is handy here
-- If it fails: show "Couldn't load recipes" with a **Try again** button (also in the mockup)
-- `fetch` can also **throw** (e.g. offline), not just return a bad status, so `getCategories` needs a `try`/`catch` that returns the `"error"` result
-- Hint: this is another "different shapes depending on status" situation, like `CategoriesResult`
+- Replace the 8 `testMeal` cards with ~8 real random meals from `random.php` (each call returns **one** meal, in `data.meals[0]`)
+- New idea: **`Promise.all`**, which runs several fetches at once and waits for all of them. Filter out duplicates by `idMeal`
+- Add a `getRandomMeals()` next to `getCategories()` in `get.ts`, with the same success/error result shape
+- Reuse what you just built: a status (`"loading" | "success" | "error"`), placeholder cards (a `MealCardPlaceholder` beside `MealCard`), `ErrorMessage` + retry
+- Then fix the "every heart toggles together" bug, since the meals will have real, different IDs
 
 **Decided for the homepage and category pages**
 
@@ -24,15 +25,43 @@ Where we're up to, so the next session can pick straight up. (Concepts and expla
 
 ## 🧹 Small loose ends
 
-- [ ] Finish tidying `App.tsx`: `Array.from(categories)` → `categories`, merge the two `"react"` imports, `./lib/get` → `@/lib/get`
-- [ ] Optional: rename `src/lib/get.ts` → `api.ts`, and use `response.ok` instead of `status !== 200`
+- [ ] Finish tidying `App.tsx`: merge the two `"react"` imports, `./lib/get` → `@/lib/get`, and update the dependency comment in the effect (it says `[]`, but it's `[attempt]` now)
+- [ ] A 404 from `getCategories` isn't logged anywhere (only thrown errors are). Add `console.error(categoriesList.message)` in `App`'s error branch
+- [ ] `ErrorMessage` polish: `type="button"`, `aria-hidden="true"` on the icon (instead of `aria-label`), rename `ErrorMessageType` → `ErrorMessageProps`. Make the title/text props so it can be reused for meals
+- [ ] Optional: rename `src/lib/get.ts` → `api.ts`
 - [ ] Later element: validate the API response with Zod in `getCategories` (TypeScript only _trusts_ `response.json()`)
-- [ ] Install the **Oxc** extension in Cursor for live lint warnings (optional: Error Lens). Add `"typecheck": "tsc -b --noEmit"` to `package.json` scripts and run it before calling an element done
+- [ ] Install the **Oxc** extension in Cursor for live lint warnings (optional: Error Lens). (TypeScript Error Translator is installed ✅; `totalTypeScript.hideAllTips` hides its blue syntax tips.) Add `"typecheck": "tsc -b --noEmit"` to `package.json` scripts and run it before calling an element done
 - [ ] Optional: `font-display text-deep-green` on the `CardGrid` heading to match the mockup
 - [ ] **Clicking one heart favourites every card.** One shared `favourite` boolean. Fix once meals are real (unique IDs): store `favouriteIds: string[]` and pass `isFavourite={favouriteIds.includes(meal.idMeal)}`
-- [ ] **Prettier isn't formatting on save yet.** Check the status bar for "Prettier" ✓/✗ with a `.tsx` file open, and reload the window. Fallback: `npm run format`
+- [ ] **Prettier isn't formatting on save yet** (on 2026-10-19, 8 files were unformatted). Check the status bar for "Prettier" ✓/✗ with a `.tsx` file open, and reload the window. Fallback: `npm run format`
 
 ## ✅ Done
+
+### Session 5 (2026-10-19)
+
+**Built**
+
+- First commit, pushed to GitHub: [barrytickle/whats-cooking](https://github.com/barrytickle/whats-cooking) (branch `main`)
+- `getCategories` wrapped in `try`/`catch` (offline/bad JSON → `"error"` result), uses `response.ok`
+- `App`: `categoryStatus` (`"loading" | "success" | "error"`) replaces the boolean. Loading shows `CategoryCardPlaceholder`s, error shows `ErrorMessage`, success shows the cards
+- `CategoryCardPlaceholder` sits in the same file as `CategoryCard`, sharing a `categoryCardStyles` object so their shapes stay in sync. It's a `<div>` (not clickable) with `animate-pulse`
+- `src/components/ui/ErrorMessage.tsx` with an `onRetry` prop. "Try again" bumps an `attempt` counter that the effect depends on
+
+**Learned along the way**
+
+- **Two kinds of fetch failure:** a bad status (fetch _returns_, so check `response.ok`) vs no response at all (fetch _throws_)
+- **`return` vs `throw`:** a function either hands back a value, or blows up and skips every line after it until a `catch`. Your own `return` can't help if the line before it threw
+- Catch at the **edge** (in `getCategories`) and turn throws into normal returns, so callers only check `status`. A second `try`/`catch` around a function that never throws is redundant
+- `await` must be **inside** the `try` for it to catch. Don't leave a `catch` empty. In `catch`, `error` is `unknown`, so use `error instanceof Error ? error.message : String(error)`
+- Return for **expected** failures (offline, no results, missing A/B element); throw only for "the code itself is broken"
+- One status union beats several booleans (`loaded` + `error` can disagree; `false` can't tell "loading" from "failed")
+- Keep state for independent things separate (categories vs meals)
+- The parent picks placeholder vs real card; placeholders need no props. Keep them beside the real component so they stay in sync. A little duplication beats the wrong abstraction
+- **Retry trick:** a counter in the dependency array. The button changes the number, the effect re-runs. No need to pass the function around
+- **Batching:** React groups state changes until your code finishes _or pauses at `await`_. So `setStatus("loading")` before an `await` renders straight away. `flushSync` forces an instant render (rarely needed)
+- `: Type` labels a thing; `<Type>` fills in a generic (`useState<…>`, `Promise<…>`). `<X>` on its own looks like JSX. TypeScript has no `int`, only `number`
+- Reading TypeScript errors: fix the first one first, read the last line of a long one. Ctrl+Space lists the types that really exist
+- Test states on purpose: fake an error return, misspell the domain, or use DevTools → Network → Slow 4G
 
 ### Session 4 (2026-10-18)
 
@@ -144,10 +173,12 @@ Where we're up to, so the next session can pick straight up. (Concepts and expla
 
 ## 🗺️ The road ahead
 
-**Version 1:** ~~Tag~~ → ~~MealCard~~ → ~~FavouriteButton~~ → ~~CategoryCard~~ → ~~CardGrid~~ → ~~fetch categories~~ → **loading/error states** → "Something to try" random meals (`Promise.all`) → React Router: `/`, `/category/:name`, `/meal/:id` → category page (meals grid, `<Link>` from category cards) → SearchBar + search results (same page layout) → MealDetail page from `design/recipe.webp` (ingredients transform, steps, video button) → Feeling lucky
+**Version 1:** ~~Tag~~ → ~~MealCard~~ → ~~FavouriteButton~~ → ~~CategoryCard~~ → ~~CardGrid~~ → ~~fetch categories~~ → ~~loading/error states~~ → **"Something to try"** random meals (`Promise.all`) → React Router: `/`, `/category/:name`, `/meal/:id` → category page (meals grid, `<Link>` from category cards) → SearchBar + search results (same page layout) → MealDetail page from `design/recipe.webp` (ingredients transform, steps, video button) → Feeling lucky
 
 **Version 2:** `/favourites` page → favourites in localStorage → sort A–Z
 
 **Version 3:** Zustand → TanStack Query → deploy to Vercel
+
+**After the course:** a **TypeScript rundown**: one page covering everything used in the project (`:` vs `< >`, unions, discriminated unions + narrowing, generics, `keyof typeof`, optional props, `unknown` in `catch`, ...) with examples from Barry's own code. Barry asked for this on 2026-10-19.
 
 **Then:** back to the Next.js Pokédex (`~/pokedex`), which has its data layer done and is waiting on rendering the list. See its own `HOW-IT-WORKS.md`.

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { MealCard } from "@/components/meal/MealCard";
 import type { Meal, Category } from "@/lib/types";
-import { CategoryCard } from "@/components/categories/CategoryCard";
+import { CategoryCard, CategoryCardPlaceholder } from "@/components/categories/CategoryCard";
 import { CardGrid } from "@/components/ui/CardGrid";
 import { useEffect } from "react";
 import { getCategories } from "./lib/get";
+import { ErrorMessage } from "./components/ui/ErrorMessage";
 const testMeal: Meal = {
   idMeal: "52771",
   strMeal: "Spicy Arrabiata Penne",
@@ -17,19 +18,25 @@ const testMeal: Meal = {
 function App() {
   const [favourite, setFavourite] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryStatus, setCategoryStatus] = useState<"loading" | "success" | "error">("loading");
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    (async () => {
+    async function loadCategories(): Promise<void> {
+      setCategoryStatus("loading");
       const categoriesList = await getCategories();
       if (categoriesList.status === "error") {
-        console.log("Unable to parse categories in App");
+        setCategoryStatus("error");
         return;
       }
       const { data } = categoriesList;
       setCategories(data);
-    })();
+      setCategoryStatus("success");
+    }
+
+    loadCategories();
     // [] is a list of dependencies that useEffect looks at to render, if therre's no dependencies it'll just finish on one.
-  }, []);
+  }, [attempt]);
 
   return (
     <main className="mx-auto max-w-6xl p-8">
@@ -39,17 +46,24 @@ function App() {
         Get random recipe
       </button>
 
-      <CardGrid title="Categories" layout="categories" className="mb-3">
-        {categories.map((category) => (
-          <CategoryCard
-            key={category.idCategory}
-            category={category}
-            onClick={() => {
-              return;
-            }}
-          />
-        ))}
-      </CardGrid>
+      {categoryStatus === "error" && <ErrorMessage onRetry={() => setAttempt(attempt + 1)} />}
+
+      {categoryStatus !== "error" && (
+        <CardGrid title="Categories" layout="categories" className="mb-3">
+          {categoryStatus === "success" &&
+            categories.map((category) => (
+              <CategoryCard
+                key={category.idCategory}
+                category={category}
+                onClick={() => {
+                  return;
+                }}
+              />
+            ))}
+          {categoryStatus === "loading" &&
+            Array.from({ length: 8 }).map((_, i) => <CategoryCardPlaceholder key={i} />)}
+        </CardGrid>
+      )}
       <CardGrid title="Recipes">
         {Array.from({ length: 8 }).map((_, i) => (
           <MealCard
