@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+/* Design system from the "What's Cooking?" mockup.
+   Each colour becomes Tailwind classes: bg-tomato, text-deep-green, border-sand... */
+@theme {
+  --color-deep-green: #1b4332;
+  --color-tomato: #d6453d;
+  --color-cream: #fdfbf1;
+  --color-sage: #a7c957;
+  --color-sand: #f1e6d9;
+  --color-ink: #1f2937;
+
+  /* font-display for headings, font-sans for everything else */
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+body {
+  @apply bg-cream font-sans text-ink antialiased;
+}
